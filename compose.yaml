@@ -1,0 +1,48 @@
+services:
+  embedding-server:
+    build:
+      context: .
+    image: ${EMBEDDING_IMAGE:-universal-embedding-server:local}
+    init: true
+    restart: unless-stopped
+    gpus: all
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      EMBEDDING_HOST: 0.0.0.0
+      EMBEDDING_PORT: "8091"
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:?Set EMBEDDING_API_KEY in .env}
+      EMBEDDING_MODEL_ID: ${EMBEDDING_MODEL_ID:?Set EMBEDDING_MODEL_ID in .env}
+      EMBEDDING_MODEL_REVISION: ${EMBEDDING_MODEL_REVISION:-}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:?Set EMBEDDING_DIMENSIONS in .env}
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-mean}
+      EMBEDDING_TRUST_REMOTE_CODE: ${EMBEDDING_TRUST_REMOTE_CODE:-false}
+      EMBEDDING_DEVICES: ${EMBEDDING_DEVICES:-cuda:0}
+      EMBEDDING_DEVICE_MAP: ${EMBEDDING_DEVICE_MAP:-}
+      EMBEDDING_DTYPE: ${EMBEDDING_DTYPE:-auto}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-8}
+      EMBEDDING_MAX_LENGTH: ${EMBEDDING_MAX_LENGTH:-512}
+      EMBEDDING_ATTN_IMPLEMENTATION: ${EMBEDDING_ATTN_IMPLEMENTATION:-auto}
+      EMBEDDING_PRELOAD: ${EMBEDDING_PRELOAD:-false}
+      HF_HOME: /cache/huggingface
+    ports:
+      - "${EMBEDDING_BIND_ADDRESS:-127.0.0.1}:${EMBEDDING_PUBLISHED_PORT:-8091}:8091"
+    volumes:
+      - hf-cache:/cache/huggingface
+    shm_size: ${EMBEDDING_SHM_SIZE:-1gb}
+    stop_grace_period: 45s
+    healthcheck:
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/healthz', timeout=3).read()
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  hf-cache:
+    name: ${HF_CACHE_VOLUME:-embedding-server-hf-cache}
